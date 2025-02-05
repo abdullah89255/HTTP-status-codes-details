@@ -1316,7 +1316,301 @@ print(f"Predicted Status for t=8: {predicted_status[0]}")
 ```
 
 ---
+---
+Here are **even more advanced examples, user guides, and techniques** for HTTP-based systems, ranging from **security enhancements**, **real-time streaming**, and **API design patterns** to **multi-protocol integrations**. These examples emphasize practical use cases, best practices, and advanced tools.
 
-These examples showcase advanced techniques for resilient, scalable, and optimized HTTP workflows. Let me know if you'd like deeper examples in specific areas like **security**, **distributed systems**, or **real-time monitoring**!
+---
+
+### **29. Secure OAuth2 Authentication Flow**
+
+**Scenario:** You're building an app that integrates with a third-party API using OAuth2.
+
+**Example: OAuth2 Authentication with Refresh Tokens**
+```python
+import requests
+
+# Initial token retrieval
+def get_token():
+    url = "https://auth.example.com/oauth2/token"
+    payload = {
+        "client_id": "your_client_id",
+        "client_secret": "your_client_secret",
+        "grant_type": "authorization_code",
+        "code": "authorization_code_here",
+        "redirect_uri": "https://yourapp.com/callback"
+    }
+    response = requests.post(url, data=payload)
+    return response.json()
+
+# Refresh token flow
+def refresh_token(refresh_token):
+    url = "https://auth.example.com/oauth2/token"
+    payload = {
+        "client_id": "your_client_id",
+        "client_secret": "your_client_secret",
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    }
+    response = requests.post(url, data=payload)
+    return response.json()
+
+tokens = get_token()
+new_tokens = refresh_token(tokens['refresh_token'])
+print(new_tokens)
+```
+
+---
+
+### **30. Real-Time Event Streaming with SSE (Server-Sent Events)**
+
+**Scenario:** Your server pushes real-time updates to a client without the overhead of WebSockets.
+
+**Example: SSE Client in Python**
+```python
+import requests
+
+def listen_to_events(url):
+    with requests.get(url, stream=True) as response:
+        for line in response.iter_lines():
+            if line:  # Ignore keep-alive new lines
+                print(f"Event: {line.decode('utf-8')}")
+
+listen_to_events("http://example.com/events")
+```
+
+**Example: Basic SSE Server in Flask**
+```python
+from flask import Flask, Response
+import time
+
+app = Flask(__name__)
+
+@app.route("/events")
+def events():
+    def generate():
+        while True:
+            yield f"data: The current time is {time.ctime()}\n\n"
+            time.sleep(1)
+    return Response(generate(), mimetype="text/event-stream")
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+### **31. API Gateway Integration with Authentication**
+
+**Scenario:** Use an API Gateway to validate requests before forwarding them.
+
+**Example: AWS API Gateway with Lambda Authorizer**
+```python
+import json
+
+def lambda_handler(event, context):
+    token = event['headers'].get('Authorization')
+    if token == "Bearer valid_token":
+        return {
+            "isAuthorized": True,
+            "context": {"user": "example_user"}
+        }
+    else:
+        return {"isAuthorized": False}
+```
+
+---
+
+### **32. Rate Limiting at API Gateway**
+
+**Scenario:** Prevent abuse by applying rate limits on API usage.
+
+**Example: Flask-Limiter for Rate Limiting**
+```python
+from flask import Flask, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+app = Flask(__name__)
+limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])
+
+@app.route("/resource")
+@limiter.limit("5 per second")  # Specific rate limit for this endpoint
+def resource():
+    return jsonify({"message": "Success"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+### **33. Handling HTTP/2 Multiplexing**
+
+**Scenario:** Use HTTP/2 to enhance performance by multiplexing multiple streams over a single connection.
+
+**Example: HTTP/2 with Python (hyper-h2)**
+```python
+from h2.connection import H2Connection
+from h2.events import ResponseReceived, DataReceived
+
+conn = H2Connection()
+conn.initiate_connection()
+conn.send_headers(stream_id=1, headers=[(":method", "GET"), (":path", "/"), (":scheme", "https"), (":authority", "example.com")])
+
+with socket.create_connection(("example.com", 443)) as sock:
+    sock.sendall(conn.data_to_send())
+    while True:
+        data = sock.recv(65535)
+        events = conn.receive_data(data)
+        for event in events:
+            if isinstance(event, ResponseReceived):
+                print(event.headers)
+            elif isinstance(event, DataReceived):
+                print(event.data.decode("utf-8"))
+```
+
+---
+
+### **34. Handling CORS in APIs**
+
+**Scenario:** Allow specific origins to access your API securely.
+
+**Example: Flask CORS Configuration**
+```python
+from flask import Flask, jsonify
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": ["https://example.com"]}})
+
+@app.route("/api/resource")
+def resource():
+    return jsonify({"message": "Hello, CORS!"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+### **35. API Pagination and Filtering**
+
+**Scenario:** Handle large datasets with efficient pagination and filters.
+
+**Example: Pagination in Flask**
+```python
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+DATA = [{"id": i, "value": f"Item {i}"} for i in range(1, 101)]
+
+@app.route("/items")
+def items():
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 10))
+    start = (page - 1) * per_page
+    end = start + per_page
+    return jsonify(DATA[start:end])
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+### **36. Real-Time WebSocket Fallback with Long Polling**
+
+**Scenario:** Fall back to long polling if WebSocket fails.
+
+**Example: Long Polling Implementation**
+```python
+import time
+import requests
+
+def long_polling(url):
+    while True:
+        response = requests.get(url)
+        if response.status_code == 200:
+            print(f"Data: {response.json()}")
+        time.sleep(1)  # Simulate polling interval
+
+long_polling("http://example.com/poll")
+```
+
+**Example: Flask Long Polling**
+```python
+from flask import Flask, jsonify
+import time
+
+app = Flask(__name__)
+
+@app.route("/poll")
+def poll():
+    time.sleep(1)  # Simulate processing
+    return jsonify({"data": "New data available!"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+### **37. Multi-Protocol API Design (GraphQL + REST)**
+
+**Scenario:** Combine GraphQL and REST endpoints for flexibility.
+
+**Example: Flask with GraphQL and REST**
+```python
+from flask import Flask, jsonify
+from flask_graphql import GraphQLView
+from graphene import ObjectType, String, Schema
+
+app = Flask(__name__)
+
+class Query(ObjectType):
+    hello = String(name=String(default_value="stranger"))
+    def resolve_hello(root, info, name):
+        return f"Hello, {name}!"
+
+schema = Schema(query=Query)
+
+@app.route("/rest")
+def rest():
+    return jsonify({"message": "This is a REST endpoint"})
+
+app.add_url_rule("/graphql", view_func=GraphQLView.as_view("graphql", schema=schema, graphiql=True))
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+### **38. Proxy with Custom Header Injection**
+
+**Scenario:** Intercept requests and add custom headers for auditing or tracking.
+
+**Example: Custom Proxy Server**
+```python
+from flask import Flask, request, Response
+import requests
+
+app = Flask(__name__)
+
+@app.route("/proxy/<path:url>")
+def proxy(url):
+    headers = dict(request.headers)
+    headers["X-Custom-Header"] = "CustomValue"
+    response = requests.get(f"http://{url}", headers=headers)
+    return Response(response.content, response.status_code, response.headers.items())
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
+
+---
+
+These examples demonstrate **state-of-the-art techniques** for handling HTTP in modern systems. Let me know if you want to explore a specific topic, such as **monitoring**, **security**, or **API optimization**, in more depth! 🚀
+
 
 
